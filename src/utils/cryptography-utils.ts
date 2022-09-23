@@ -239,10 +239,11 @@ export const numberToBytes = (num: number) => {
   return new Uint8Array(buffer);
 };
 
-export const deserializeResponse = (
+export const parseResponse = (
   decryptedResponseData: Uint8Array
 ): ResponseApdu => {
   const sw = decryptedResponseData.slice(decryptedResponseData.length - 2);
+
   return {
     sw: bytesToNumber(sw),
     s1: sw[0],
@@ -251,11 +252,16 @@ export const deserializeResponse = (
   };
 };
 
-export const isCertificateValid = async (
-  cert: CardCertificate,
-  certAuthorityPublicKey: Uint8Array
-): Promise<boolean> => {
-  const sigData = Uint8Array.of(
+export const serialiseCertificate = (cert: CardCertificate): Uint8Array =>
+  Uint8Array.of(
+    cert.permissions.certType,
+    cert.permissions.certLen,
+    ...digestCertificate(cert),
+    ...cert.signature
+  );
+
+export const digestCertificate = (cert: CardCertificate): Uint8Array =>
+  Uint8Array.of(
     cert.permissions.permType,
     cert.permissions.permLen,
     ...cert.permissions.permissions,
@@ -264,7 +270,12 @@ export const isCertificateValid = async (
     ...cert.publicKey
   );
 
-  const sigDataHash = await secp256k1.utils.sha256(sigData);
+export const isCertificateValid = async (
+  cert: CardCertificate,
+  certAuthorityPublicKey: Uint8Array
+): Promise<boolean> => {
+  const certDigest = digestCertificate(cert);
+  const sigDataHash = await secp256k1.utils.sha256(certDigest);
 
   return secp256k1.verify(cert.signature, sigDataHash, certAuthorityPublicKey, {
     strict: false,

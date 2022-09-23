@@ -1,11 +1,30 @@
 import { CURVE_TYPE_CODE_TO_NAME_MAP } from '../constants';
-import { CardCertificate, CurveType, Phonon } from '../types';
+import { CardCertificate, Phonon } from '../types';
 import { bytesToNumber } from '../utils/cryptography-utils';
 import TLVCollection from '../utils/TLV';
 import { ResponseApdu } from './apdu-types';
 
 const SW_SUCCESS = 36864;
 // const SW_DATA_INVALID = 27012;
+
+export type ParseResponse<SuccessData, ErrorData> =
+  | {
+      success: true;
+      data: SuccessData;
+    }
+  | { success: false; error: ErrorData };
+
+export type UnknownError = {
+  code: 'UNKNOWN';
+  data: {};
+};
+
+export type UnlockError = {
+  code: 'INCORRECT_PIN';
+  data: { triesRemaining: number };
+};
+
+export type UnlockResponse = ParseResponse<{}, UnlockError>;
 
 export type SelectPhononFileResponse = {
   initialised: boolean;
@@ -24,10 +43,6 @@ export type PairStepTwoResponse = {
   salt: Uint8Array;
 };
 
-export type UnlockResponse =
-  | { success: true }
-  | { success: false; triesRemaining: number };
-
 export type CreatePhononResponse = { keyIndex: number; publicKey: Uint8Array };
 
 export type DestroyPhononResponse = { privateKey: Uint8Array };
@@ -41,9 +56,24 @@ export type GetPhononPublicKeyResponse = {
   publicKey: Uint8Array;
 };
 
-export type SuccessResponse = {
-  success: boolean;
-};
+export type ChangeFriendlyNameResponse = ParseResponse<{}, UnknownError>;
+export type ChangePinResponse = ParseResponse<{}, UnknownError>;
+
+export type PairStepOneTwoThreeResponse = ParseResponse<
+  { pairingData: Uint8Array },
+  UnknownError
+>;
+
+export type PairStepRecipientStepTwoResponse = ParseResponse<{}, UnknownError>;
+
+export type SendPhononsResponse = ParseResponse<
+  {
+    transferPackets: Uint8Array;
+  },
+  UnknownError
+>;
+
+export type ReceivePhononsResponse = ParseResponse<{}, UnknownError>;
 
 export const parseSelectPhononAppletResponse = (
   responseApdu: ResponseApdu
@@ -82,14 +112,19 @@ export const parseUnlockResponse = (
   responseApdu: ResponseApdu
 ): UnlockResponse => {
   if (responseApdu.sw === SW_SUCCESS) {
-    return { success: true };
+    return { success: true, data: {} };
   }
 
   const triesRemaining = responseApdu.sw - 25536;
 
   return {
     success: false,
-    triesRemaining,
+    error: {
+      code: 'INCORRECT_PIN',
+      data: {
+        triesRemaining,
+      },
+    },
   };
 };
 
@@ -168,17 +203,119 @@ export const parseGetPhononPublicKeyResponse = (
 
 export const parseChangePinResponse = (
   responseApdu: ResponseApdu
-): SuccessResponse => {
+): ChangePinResponse => {
+  if (responseApdu.sw === SW_SUCCESS) {
+    return {
+      success: true,
+      data: {},
+    };
+  }
+
   return {
-    success: responseApdu.sw === SW_SUCCESS,
+    success: false,
+    error: {
+      code: 'UNKNOWN',
+      data: {},
+    },
   };
 };
 
 export const parseChangeFriendlyNameResponse = (
   responseApdu: ResponseApdu
-): SuccessResponse => {
+): ChangeFriendlyNameResponse => {
+  if (responseApdu.sw === SW_SUCCESS) {
+    return {
+      success: true,
+      data: {},
+    };
+  }
+
   return {
-    success: responseApdu.sw === SW_SUCCESS,
+    success: false,
+    error: {
+      code: 'UNKNOWN',
+      data: {},
+    },
+  };
+};
+
+export const parsePairStepOneTwoThreeResponse = (
+  responseApdu: ResponseApdu
+): PairStepOneTwoThreeResponse => {
+  if (responseApdu.sw === SW_SUCCESS) {
+    return {
+      success: true,
+      data: {
+        pairingData: responseApdu.data,
+      },
+    };
+  }
+
+  return {
+    success: false,
+    error: {
+      code: 'UNKNOWN',
+      data: {},
+    },
+  };
+};
+
+export const parsePairRecipientStepTwoResponse = (
+  responseApdu: ResponseApdu
+): PairStepRecipientStepTwoResponse => {
+  if (responseApdu.sw === SW_SUCCESS) {
+    return {
+      success: true,
+      data: {},
+    };
+  }
+
+  return {
+    success: false,
+    error: {
+      code: 'UNKNOWN',
+      data: {},
+    },
+  };
+};
+
+export const parseSendPhononsResponse = (
+  responseApdu: ResponseApdu
+): SendPhononsResponse => {
+  if (responseApdu.sw === SW_SUCCESS) {
+    return {
+      success: true,
+      data: {
+        transferPackets: responseApdu.data,
+      },
+    };
+  }
+
+  return {
+    success: false,
+    error: {
+      code: 'UNKNOWN',
+      data: {},
+    },
+  };
+};
+
+export const parseReceivePhononsResponse = (
+  responseApdu: ResponseApdu
+): ReceivePhononsResponse => {
+  if (responseApdu.sw === SW_SUCCESS) {
+    return {
+      success: true,
+      data: {},
+    };
+  }
+
+  return {
+    success: false,
+    error: {
+      code: 'UNKNOWN',
+      data: {},
+    },
   };
 };
 

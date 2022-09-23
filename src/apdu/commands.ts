@@ -155,3 +155,85 @@ export const createChangeFriendlyNameCommandApdu = (
     data: stringToBytes(newName),
   };
 };
+
+export const createPairSenderStepOneCommandApdu = (
+  receivingCardsCert: Uint8Array
+): CommandApdu => {
+  const data = encodeTlv({ tag: 144, value: receivingCardsCert });
+  return {
+    cla: 128,
+    ins: 80,
+    p1: 0,
+    p2: 0,
+    data,
+  };
+};
+
+export const createPairRecipientStepOneCommandApdu = (
+  pairSenderOneData: Uint8Array
+): CommandApdu => {
+  return {
+    cla: 128,
+    ins: 81,
+    p1: 0,
+    p2: 0,
+    data: pairSenderOneData,
+  };
+};
+
+export const createPairSenderStepTwoCommandApdu = (
+  pairRecipientOneData: Uint8Array
+): CommandApdu => {
+  return {
+    cla: 128,
+    ins: 82,
+    p1: 0,
+    p2: 0,
+    data: pairRecipientOneData,
+  };
+};
+
+export const createPairRecipientStepTwoCommandApdu = (
+  pairSenderTwoData: Uint8Array
+): CommandApdu => {
+  return {
+    cla: 128,
+    ins: 83,
+    p1: 0,
+    p2: 0,
+    data: pairSenderTwoData,
+  };
+};
+
+export const createSendPhononsCommandApud = (
+  keyIndices: number[],
+  extendedRequest: boolean
+): CommandApdu => {
+  const keyIndiciesBytes = keyIndices.reduce(
+    (progress, keyIndex) =>
+      new Uint8Array([...progress, ...numberToBytes(keyIndex)]),
+    new Uint8Array()
+  );
+
+  const data = encodeTlv({ tag: 66, value: keyIndiciesBytes });
+
+  return {
+    cla: 0,
+    ins: 53,
+    p1: extendedRequest ? 1 : 0,
+    p2: keyIndices.length,
+    data,
+  };
+};
+
+export const createReceivePhononsCommandApud = (
+  phononTransfer: Uint8Array
+): CommandApdu => {
+  return {
+    cla: 0,
+    ins: 54,
+    p1: 0,
+    p2: 0,
+    data: phononTransfer,
+  };
+};

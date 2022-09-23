@@ -5,7 +5,7 @@ import {
   createPairStepTwoCryptogram,
   decrypt,
   deriveSessionKeys,
-  deserializeResponse,
+  parseResponse,
   encrypt,
   generateSharedSecret,
   parseEncryptedResponseData,
@@ -258,11 +258,11 @@ describe('crypto utils', () => {
     });
   });
 
-  describe('deserializeResponseData', () => {
+  describe('parseResponseData', () => {
     it("should return the correct result when the response doesn't contain any data", async () => {
       const DATA = new Uint8Array([99, 201]);
 
-      const result = deserializeResponse(DATA);
+      const result = parseResponse(DATA);
 
       expect(result.sw).toEqual(25545);
       expect(result.s1).toEqual(99);
@@ -276,7 +276,7 @@ describe('crypto utils', () => {
         172, 248, 231, 161, 236, 157, 20, 35, 46, 223, 27, 138, 192, 6, 85, 37,
         144, 0,
       ]);
-      const result = deserializeResponse(DATA);
+      const result = parseResponse(DATA);
       expect(result.sw).toEqual(36864);
       expect(result.s1).toEqual(144);
       expect(result.s2).toEqual(0);

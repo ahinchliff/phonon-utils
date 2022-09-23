@@ -6,7 +6,8 @@
   "dependencies": {
     "@noble/secp256k1": "^1.6.3",
     "@types/node": "^17.0.21",
-    "smartcard": "^1.0.46"
+    "smartcard": "^1.0.46",
+    "socket.io-client": "^4.5.2"
   },
   "scripts": {
     "start": "ts-node-dev src/index.ts",

@@ -1,7 +1,7 @@
 // @ts-ignore
 import * as smartcard from 'smartcard';
 import { CommandApdu, ResponseApdu } from './apdu/apdu-types';
-import { deserializeResponse } from './utils/cryptography-utils';
+import { parseResponse } from './utils/cryptography-utils';
 
 export const createSendCommand =
   (card: any) =>
@@ -11,5 +11,5 @@ export const createSendCommand =
       new smartcard.CommandApdu({ ...command, data: [...command.data] })
     );
     const response = new Uint8Array(_response.buffer);
-    return deserializeResponse(response);
+    return parseResponse(response);
   };

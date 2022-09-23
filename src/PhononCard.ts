@@ -10,13 +10,18 @@ import {
   createListPhononsCommandApdu,
   createMutualAuthenticateCommandApdu,
   createOpenSecureChannelCommandApdu,
+  createPairRecipientStepOneCommandApdu,
+  createPairRecipientStepTwoCommandApdu,
+  createPairSenderStepOneCommandApdu,
+  createPairSenderStepTwoCommandApdu,
   createPairStepOneCommandApdu,
   createPairStepTwoCommandApdu,
+  createReceivePhononsCommandApud,
   createSelectPhononCommandApdu,
+  createSendPhononsCommandApud,
   createUnlockCommandApdu,
 } from './apdu/commands';
 import {
-  SuccessResponse,
   CreatePhononResponse,
   DestroyPhononResponse,
   GetPhononPublicKeyResponse,
@@ -35,23 +40,34 @@ import {
   SelectPhononFileResponse,
   UnlockResponse,
   parseChangeFriendlyNameResponse,
+  ChangePinResponse,
+  ChangeFriendlyNameResponse,
+  parsePairStepOneTwoThreeResponse,
+  PairStepOneTwoThreeResponse,
+  parsePairRecipientStepTwoResponse,
+  PairStepRecipientStepTwoResponse,
+  parseSendPhononsResponse,
+  SendPhononsResponse,
+  parseReceivePhononsResponse,
+  ReceivePhononsResponse,
 } from './apdu/responses';
 import { CardCertificate, CurveType, Phonon } from './types';
 import {
   createPairStepTwoCryptogram,
   decryptResponseData,
   deriveSessionKeys,
-  deserializeResponse,
+  parseResponse,
   encryptCommandApdu,
   generateRandomBytes,
   generateSharedSecret,
   isCertificateValid,
+  serialiseCertificate,
   SessionKeys,
 } from './utils/cryptography-utils';
 
 export default class PhononCard {
-  private sessionKeys: SessionKeys | undefined;
   private cardCertificate: CardCertificate | undefined;
+  private sessionKeys: SessionKeys | undefined;
   private pairingSignature: Uint8Array | undefined;
   private verifyIdentitySignatureDataHash: Uint8Array | undefined;
 
@@ -118,7 +134,7 @@ export default class PhononCard {
     return parseGetPhononPublicKeyResponse(response);
   };
 
-  public changePin = async (newPin: string): Promise<SuccessResponse> => {
+  public changePin = async (newPin: string): Promise<ChangePinResponse> => {
     const command = createChangePinCommandApud(newPin);
     const response = await this.sendCommandInternal(command);
     return parseChangePinResponse(response);
@@ -126,10 +142,67 @@ export default class PhononCard {
 
   public changeFriendlyName = async (
     newName: string
-  ): Promise<SuccessResponse> => {
+  ): Promise<ChangeFriendlyNameResponse> => {
     const command = createChangeFriendlyNameCommandApdu(newName);
     const response = await this.sendCommandInternal(command);
     return parseChangeFriendlyNameResponse(response);
+  };
+
+  public cardPairStepOne = async (
+    recipientsCardCert: CardCertificate
+  ): Promise<PairStepOneTwoThreeResponse> => {
+    const command = createPairSenderStepOneCommandApdu(
+      serialiseCertificate(recipientsCardCert)
+    );
+    const response = await this.sendCommandInternal(command);
+
+    return parsePairStepOneTwoThreeResponse(response);
+  };
+
+  public cardPairStepTwo = async (
+    pairSenderStepOneData: Uint8Array
+  ): Promise<PairStepOneTwoThreeResponse> => {
+    const command = createPairRecipientStepOneCommandApdu(
+      pairSenderStepOneData
+    );
+    const response = await this.sendCommandInternal(command);
+    return parsePairStepOneTwoThreeResponse(response);
+  };
+
+  public cardPairStepThree = async (
+    pairRecipientStepOneData: Uint8Array
+  ): Promise<PairStepOneTwoThreeResponse> => {
+    const command = createPairSenderStepTwoCommandApdu(
+      pairRecipientStepOneData
+    );
+    const response = await this.sendCommandInternal(command);
+    return parsePairStepOneTwoThreeResponse(response);
+  };
+
+  public cardPairStepFour = async (
+    pairSenderStepTwoData: Uint8Array
+  ): Promise<PairStepRecipientStepTwoResponse> => {
+    const command = createPairRecipientStepTwoCommandApdu(
+      pairSenderStepTwoData
+    );
+    const response = await this.sendCommandInternal(command);
+    return parsePairRecipientStepTwoResponse(response);
+  };
+
+  public sendPhonons = async (
+    keyIndicies: number[]
+  ): Promise<SendPhononsResponse> => {
+    const command = createSendPhononsCommandApud(keyIndicies, false);
+    const response = await this.sendCommandInternal(command);
+    return parseSendPhononsResponse(response);
+  };
+
+  public receivePhonons = async (
+    transfer: Uint8Array
+  ): Promise<ReceivePhononsResponse> => {
+    const command = createReceivePhononsCommandApud(transfer);
+    const response = await this.sendCommandInternal(command);
+    return parseReceivePhononsResponse(response);
   };
 
   public pair = async () => {
@@ -244,6 +317,14 @@ export default class PhononCard {
     return this.cardCertificate.publicKey;
   };
 
+  public getCertificate = (): CardCertificate => {
+    if (!this.cardCertificate) {
+      throw new Error("Can't get public key before paring");
+    }
+
+    return this.cardCertificate;
+  };
+
   private selectPhononApplet = async (): Promise<SelectPhononFileResponse> => {
     const command = createSelectPhononCommandApdu();
     const response = await this.sendCommandInternal(command);
@@ -314,6 +395,6 @@ export default class PhononCard {
       iv,
     };
 
-    return deserializeResponse(plainTextData);
+    return parseResponse(plainTextData);
   };
 }
