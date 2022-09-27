@@ -25,7 +25,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
     return to.concat(ar || Array.prototype.slice.call(from));
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createReceivePhononsCommandApud = exports.createSendPhononsCommandApud = exports.createPairRecipientStepTwoCommandApdu = exports.createPairSenderStepTwoCommandApdu = exports.createPairRecipientStepOneCommandApdu = exports.createPairSenderStepOneCommandApdu = exports.createChangeFriendlyNameCommandApdu = exports.createChangePinCommandApud = exports.createGetPhononPublicKeyCommandApdu = exports.createListPhononsCommandApdu = exports.createDestroyPhononCommandApdu = exports.createCreatePhononCommandApdu = exports.createGetFriendlyNameCommandApud = exports.createUnlockCommandApdu = exports.createMutualAuthenticateCommandApdu = exports.createOpenSecureChannelCommandApdu = exports.createPairStepTwoCommandApdu = exports.createPairStepOneCommandApdu = exports.createSelectPhononCommandApdu = void 0;
+exports.createIdentifyCardCommandApdu = exports.createInitCardCommandApdu = exports.createReceivePhononsCommandApdu = exports.createSendPhononsCommandApdu = exports.createPairRecipientStepTwoCommandApdu = exports.createPairSenderStepTwoCommandApdu = exports.createPairRecipientStepOneCommandApdu = exports.createPairSenderStepOneCommandApdu = exports.createChangeFriendlyNameCommandApdu = exports.createChangePinCommandApdu = exports.createGetPhononPublicKeyCommandApdu = exports.createListPhononsCommandApdu = exports.createDestroyPhononCommandApdu = exports.createCreatePhononCommandApdu = exports.createGetFriendlyNameCommandApdu = exports.createUnlockCommandApdu = exports.createMutualAuthenticateCommandApdu = exports.createOpenSecureChannelCommandApdu = exports.createPairStepTwoCommandApdu = exports.createPairStepOneCommandApdu = exports.createSelectPhononCommandApdu = void 0;
 var cryptography_utils_1 = require("../utils/cryptography-utils");
 var TLV_1 = require("../utils/TLV");
 var createSelectPhononCommandApdu = function () { return ({
@@ -76,14 +76,14 @@ var createUnlockCommandApdu = function (pin) { return ({
     data: (0, cryptography_utils_1.stringToBytes)(pin),
 }); };
 exports.createUnlockCommandApdu = createUnlockCommandApdu;
-var createGetFriendlyNameCommandApud = function () { return ({
+var createGetFriendlyNameCommandApdu = function () { return ({
     cla: 128,
     ins: 87,
     p1: 0,
     p2: 0,
     data: new Uint8Array([0]),
 }); };
-exports.createGetFriendlyNameCommandApud = createGetFriendlyNameCommandApud;
+exports.createGetFriendlyNameCommandApdu = createGetFriendlyNameCommandApdu;
 var createCreatePhononCommandApdu = function (curveType) {
     var curveCode = (0, cryptography_utils_1.curveNameToCurveCode)(curveType);
     if (!curveCode) {
@@ -135,7 +135,7 @@ var createGetPhononPublicKeyCommandApdu = function (keyIndex) {
     };
 };
 exports.createGetPhononPublicKeyCommandApdu = createGetPhononPublicKeyCommandApdu;
-var createChangePinCommandApud = function (newPin) {
+var createChangePinCommandApdu = function (newPin) {
     return {
         cla: 128,
         ins: 33,
@@ -144,7 +144,7 @@ var createChangePinCommandApud = function (newPin) {
         data: (0, cryptography_utils_1.stringToBytes)(newPin),
     };
 };
-exports.createChangePinCommandApud = createChangePinCommandApud;
+exports.createChangePinCommandApdu = createChangePinCommandApdu;
 var createChangeFriendlyNameCommandApdu = function (newName) {
     return {
         cla: 128,
@@ -196,7 +196,7 @@ var createPairRecipientStepTwoCommandApdu = function (pairSenderTwoData) {
     };
 };
 exports.createPairRecipientStepTwoCommandApdu = createPairRecipientStepTwoCommandApdu;
-var createSendPhononsCommandApud = function (keyIndices, extendedRequest) {
+var createSendPhononsCommandApdu = function (keyIndices, extendedRequest) {
     var keyIndiciesBytes = keyIndices.reduce(function (progress, keyIndex) {
         return new Uint8Array(__spreadArray(__spreadArray([], __read(progress), false), __read((0, cryptography_utils_1.numberToBytes)(keyIndex)), false));
     }, new Uint8Array());
@@ -209,8 +209,8 @@ var createSendPhononsCommandApud = function (keyIndices, extendedRequest) {
         data: data,
     };
 };
-exports.createSendPhononsCommandApud = createSendPhononsCommandApud;
-var createReceivePhononsCommandApud = function (phononTransfer) {
+exports.createSendPhononsCommandApdu = createSendPhononsCommandApdu;
+var createReceivePhononsCommandApdu = function (phononTransfer) {
     return {
         cla: 0,
         ins: 54,
@@ -219,4 +219,24 @@ var createReceivePhononsCommandApud = function (phononTransfer) {
         data: phononTransfer,
     };
 };
-exports.createReceivePhononsCommandApud = createReceivePhononsCommandApud;
+exports.createReceivePhononsCommandApdu = createReceivePhononsCommandApdu;
+var createInitCardCommandApdu = function (data) {
+    return {
+        cla: 128,
+        ins: 254,
+        p1: 0,
+        p2: 0,
+        data: data,
+    };
+};
+exports.createInitCardCommandApdu = createInitCardCommandApdu;
+var createIdentifyCardCommandApdu = function (nonce) {
+    return {
+        cla: 128,
+        ins: 20,
+        p1: 0,
+        p2: 0,
+        data: nonce,
+    };
+};
+exports.createIdentifyCardCommandApdu = createIdentifyCardCommandApdu;

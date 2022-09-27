@@ -3,6 +3,7 @@ import * as smartcard from 'smartcard';
 import { createSendCommand } from './adapters';
 import PhononCard from './PhononCard';
 import RemotePairing from './RemotePairing';
+import { generateRandomBytes } from './utils/cryptography-utils';
 
 const devicesEvents = new smartcard.Devices();
 const util = require('util');
@@ -153,9 +154,16 @@ const onCardDetected = async (event: any) => {
   const sendCommand = createSendCommand(event.card);
   const card = new PhononCard(sendCommand);
 
-  await card.pair();
+  await card.select();
+
+  if (!card.getIsInitialised()) {
+    console.log('card not initialised');
+  }
   await card.unlock('111111');
-  phononCards.push(card);
+
+  await card.openSecureConnection();
+
+  console.log(card.getPublicKey());
 
   // await testCardPairing();
 

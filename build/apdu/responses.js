@@ -3,19 +3,30 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.parseReceivePhononsResponse = exports.parseSendPhononsResponse = exports.parsePairRecipientStepTwoResponse = exports.parsePairStepOneTwoThreeResponse = exports.parseChangeFriendlyNameResponse = exports.parseChangePinResponse = exports.parseGetPhononPublicKeyResponse = exports.parseListPhononsResponse = exports.parseDestroyPhononResponse = exports.parseCreatePhononResponse = exports.parseGetFriendlyNameResponse = exports.parseUnlockResponse = exports.parsePairStepTwoResponse = exports.parsePairStepOneResponse = exports.parseSelectPhononAppletResponse = void 0;
+exports.parseReceivePhononsResponse = exports.parseSendPhononsResponse = exports.parsePairRecipientStepTwoResponse = exports.parsePairStepOneTwoThreeResponse = exports.parseChangeFriendlyNameResponse = exports.parseChangePinResponse = exports.parseGetPhononPublicKeyResponse = exports.parseListPhononsResponse = exports.parseDestroyPhononResponse = exports.parseCreatePhononResponse = exports.parseGetFriendlyNameResponse = exports.parseUnlockResponse = exports.parsePairStepTwoResponse = exports.parsePairStepOneResponse = exports.parseIdentifyCardResponse = exports.parseSelectPhononAppletResponse = void 0;
 var constants_1 = require("../constants");
 var cryptography_utils_1 = require("../utils/cryptography-utils");
 var TLV_1 = __importDefault(require("../utils/TLV"));
 var SW_SUCCESS = 36864;
 var parseSelectPhononAppletResponse = function (responseApdu) {
+    var initialised = responseApdu.data[0] === 164;
+    var publicKeyLength = responseApdu.data[1];
     return {
-        initialised: responseApdu.data[0] === 164,
-        uuid: responseApdu.data.slice(4, 20),
-        publicKey: responseApdu.data.slice(22, 87),
+        initialised: initialised,
+        uuid: initialised ? responseApdu.data.slice(4, 20) : undefined,
+        publicKey: initialised
+            ? responseApdu.data.slice(22, 87)
+            : responseApdu.data.slice(2, 2 + publicKeyLength),
     };
 };
 exports.parseSelectPhononAppletResponse = parseSelectPhononAppletResponse;
+var parseIdentifyCardResponse = function (responseApdu) {
+    return {
+        publicKey: responseApdu.data.slice(2, 67),
+        signature: responseApdu.data.slice(67),
+    };
+};
+exports.parseIdentifyCardResponse = parseIdentifyCardResponse;
 var parsePairStepOneResponse = function (responseApdu) {
     var certLength = responseApdu.data[33];
     var rawCert = responseApdu.data.slice(32, 34 + certLength);

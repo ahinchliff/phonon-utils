@@ -20,8 +20,12 @@ export declare type UnlockError = {
 export declare type UnlockResponse = ParseResponse<{}, UnlockError>;
 export declare type SelectPhononFileResponse = {
     initialised: boolean;
-    uuid: Uint8Array;
+    uuid: Uint8Array | undefined;
     publicKey: Uint8Array;
+};
+export declare type IdentifyCardResponse = {
+    publicKey: Uint8Array;
+    signature: Uint8Array;
 };
 export declare type PairStepOneResponse = {
     cardIdentityCertificate: CardCertificate;
@@ -57,6 +61,7 @@ export declare type SendPhononsResponse = ParseResponse<{
 }, UnknownError>;
 export declare type ReceivePhononsResponse = ParseResponse<{}, UnknownError>;
 export declare const parseSelectPhononAppletResponse: (responseApdu: ResponseApdu) => SelectPhononFileResponse;
+export declare const parseIdentifyCardResponse: (responseApdu: ResponseApdu) => IdentifyCardResponse;
 export declare const parsePairStepOneResponse: (responseApdu: ResponseApdu) => PairStepOneResponse;
 export declare const parsePairStepTwoResponse: (responseApdu: ResponseApdu) => PairStepTwoResponse;
 export declare const parseUnlockResponse: (responseApdu: ResponseApdu) => UnlockResponse;

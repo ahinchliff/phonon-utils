@@ -1,12 +1,15 @@
 import * as secp256k1 from '@noble/secp256k1';
+import { randomBytes } from 'crypto';
 import { CommandApdu, ResponseApdu } from './apdu/apdu-types';
 import {
   createChangeFriendlyNameCommandApdu,
-  createChangePinCommandApud,
+  createChangePinCommandApdu,
   createCreatePhononCommandApdu,
   createDestroyPhononCommandApdu,
-  createGetFriendlyNameCommandApud,
+  createGetFriendlyNameCommandApdu,
   createGetPhononPublicKeyCommandApdu,
+  createIdentifyCardCommandApdu,
+  createInitCardCommandApdu,
   createListPhononsCommandApdu,
   createMutualAuthenticateCommandApdu,
   createOpenSecureChannelCommandApdu,
@@ -16,9 +19,9 @@ import {
   createPairSenderStepTwoCommandApdu,
   createPairStepOneCommandApdu,
   createPairStepTwoCommandApdu,
-  createReceivePhononsCommandApud,
+  createReceivePhononsCommandApdu,
   createSelectPhononCommandApdu,
-  createSendPhononsCommandApud,
+  createSendPhononsCommandApdu,
   createUnlockCommandApdu,
 } from './apdu/commands';
 import {
@@ -37,7 +40,6 @@ import {
   parsePairStepTwoResponse,
   parseSelectPhononAppletResponse,
   parseUnlockResponse,
-  SelectPhononFileResponse,
   UnlockResponse,
   parseChangeFriendlyNameResponse,
   ChangePinResponse,
@@ -50,6 +52,8 @@ import {
   SendPhononsResponse,
   parseReceivePhononsResponse,
   ReceivePhononsResponse,
+  parseIdentifyCardResponse,
+  IdentifyCardResponse,
 } from './apdu/responses';
 import { CardCertificate, CurveType, Phonon } from './types';
 import { createInvokeQueue } from './utils/create-invoke-queue';
@@ -64,21 +68,84 @@ import {
   isCertificateValid,
   serialiseCertificate,
   SessionKeys,
+  generateInitSecrets,
+  stringToBytes,
+  encrypt,
 } from './utils/cryptography-utils';
 
 export default class PhononCard {
   private queue = createInvokeQueue();
-  private cardCertificate: CardCertificate | undefined;
+  private isInitialised: boolean | undefined;
+  private publicKey: Uint8Array | undefined;
+  private pairingPublicKey: Uint8Array | undefined;
+  private certificate: CardCertificate | undefined;
   private sessionKeys: SessionKeys | undefined;
   private pairingSignature: Uint8Array | undefined;
-  private verifyIdentitySignatureDataHash: Uint8Array | undefined;
+  private pairingSignatureData: Uint8Array | undefined;
 
   constructor(
     private sendCommand: (command: CommandApdu) => Promise<ResponseApdu>
   ) {}
 
+  public select = async (): Promise<void> => {
+    const command = createSelectPhononCommandApdu();
+    const response = await this.sendCommandInteral(command);
+    const { initialised, publicKey } =
+      parseSelectPhononAppletResponse(response);
+
+    this.isInitialised = initialised;
+    this.pairingPublicKey = publicKey;
+  };
+
+  public identifyCard = async (
+    nonce?: Uint8Array
+  ): Promise<IdentifyCardResponse> => {
+    const command = createIdentifyCardCommandApdu(nonce || randomBytes(32));
+    const response = await this.sendCommandInteral(command);
+    const parsedResponse = parseIdentifyCardResponse(response);
+    this.publicKey = parsedResponse.publicKey;
+    return parsedResponse;
+  };
+
+  public init = async (newPin: string): Promise<void> => {
+    if (this.isInitialised) {
+      throw new Error('Card is already initialised');
+    }
+
+    if (!this.pairingPublicKey) {
+      throw new Error('Card does not have public key. Try running select.');
+    }
+
+    const pairingPrivateKey = secp256k1.utils.randomPrivateKey();
+    const pairingPublicKey = secp256k1.getPublicKey(pairingPrivateKey);
+    const initSecrets = generateInitSecrets();
+    const sharedSecret = generateSharedSecret(
+      pairingPrivateKey,
+      this.pairingPublicKey
+    );
+
+    const initData = new Uint8Array([
+      ...stringToBytes(newPin),
+      ...initSecrets.pairingToken,
+    ]);
+    const iv = generateRandomBytes(16);
+    const encryptedData = encrypt(initData, sharedSecret, iv);
+
+    const data = new Uint8Array([
+      pairingPublicKey.length,
+      ...pairingPublicKey,
+      ...iv,
+      ...encryptedData,
+    ]);
+
+    const command = createInitCardCommandApdu(data);
+    await this.sendCommandInteral(command);
+
+    await this.select();
+  };
+
   public getFriendlyName = async (): Promise<string | undefined> => {
-    const command = createGetFriendlyNameCommandApud();
+    const command = createGetFriendlyNameCommandApdu();
     const response = await this.sendCommandInteral(command);
     return parseGetFriendlyNameResponse(response);
   };
@@ -137,7 +204,7 @@ export default class PhononCard {
   };
 
   public changePin = async (newPin: string): Promise<ChangePinResponse> => {
-    const command = createChangePinCommandApud(newPin);
+    const command = createChangePinCommandApdu(newPin);
     const response = await this.sendCommandInteral(command);
     return parseChangePinResponse(response);
   };
@@ -194,7 +261,7 @@ export default class PhononCard {
   public sendPhonons = async (
     keyIndicies: number[]
   ): Promise<SendPhononsResponse> => {
-    const command = createSendPhononsCommandApud(keyIndicies, false);
+    const command = createSendPhononsCommandApdu(keyIndicies, false);
     const response = await this.sendCommandInteral(command);
     return parseSendPhononsResponse(response);
   };
@@ -202,20 +269,23 @@ export default class PhononCard {
   public receivePhonons = async (
     transfer: Uint8Array
   ): Promise<ReceivePhononsResponse> => {
-    const command = createReceivePhononsCommandApud(transfer);
+    const command = createReceivePhononsCommandApdu(transfer);
     const response = await this.sendCommandInteral(command);
     return parseReceivePhononsResponse(response);
   };
 
-  public pair = async () => {
-    const selectResponse = await this.selectPhononApplet();
+  public openSecureConnection = async (): Promise<void> => {
+    if (!this.isInitialised || !this.pairingPublicKey) {
+      throw new Error('Card is not initalised');
+    }
+
     const secureChannelPrivateKey = secp256k1.utils.randomPrivateKey();
     const secureChannelPublicKey = secp256k1.getPublicKey(
       secureChannelPrivateKey
     );
     const secureChannelSharedSecret = generateSharedSecret(
       secureChannelPrivateKey,
-      selectResponse.publicKey
+      this.pairingPublicKey
     );
 
     const clientSalt = generateRandomBytes(32);
@@ -270,29 +340,29 @@ export default class PhononCard {
 
     await this.mutualAuthenticate(mutuallyAuthenticateData);
 
-    this.cardCertificate = pairOneResponse.cardIdentityCertificate;
+    this.certificate = pairOneResponse.cardIdentityCertificate;
     this.pairingSignature = pairOneResponse.pairingSignature;
-    this.verifyIdentitySignatureDataHash = verifyIdentifySignatureDataHash;
+    this.pairingSignatureData = verifyIdentifySignatureDataHash;
   };
 
   public verifyCard = async (caAuthorityCert: Uint8Array) => {
     if (
-      !this.cardCertificate ||
+      !this.certificate ||
       !this.pairingSignature ||
-      !this.verifyIdentitySignatureDataHash
+      !this.pairingSignatureData
     ) {
       throw new Error("Can't verify card before paring");
     }
 
     const certIsValid = await isCertificateValid(
-      this.cardCertificate,
+      this.certificate,
       caAuthorityCert
     );
 
     const signatureIsValid = secp256k1.verify(
       this.pairingSignature,
-      this.verifyIdentitySignatureDataHash,
-      this.cardCertificate.publicKey,
+      this.pairingSignatureData,
+      this.certificate.publicKey,
       {
         strict: false,
       }
@@ -312,25 +382,31 @@ export default class PhononCard {
   };
 
   public getPublicKey = (): Uint8Array => {
-    if (!this.cardCertificate) {
-      throw new Error("Can't get public key before paring");
+    if (!this.certificate && !this.publicKey) {
+      throw new Error(
+        "Can't get public key before running select or openSecureConnection"
+      );
+    }
+    return (this.certificate?.publicKey || this.publicKey) as Uint8Array;
+  };
+
+  public getIsInitialised = (): boolean => {
+    if (this.isInitialised === undefined) {
+      throw new Error(
+        "Can't determine if card is initialised before running select"
+      );
     }
 
-    return this.cardCertificate.publicKey;
+    return this.isInitialised;
   };
 
   public getCertificate = (): CardCertificate => {
-    if (!this.cardCertificate) {
-      throw new Error("Can't get public key before paring");
+    if (!this.certificate) {
+      throw new Error(
+        "Can't get certificate before running openSecureConnection"
+      );
     }
-
-    return this.cardCertificate;
-  };
-
-  private selectPhononApplet = async (): Promise<SelectPhononFileResponse> => {
-    const command = createSelectPhononCommandApdu();
-    const response = await this.sendCommandInteral(command);
-    return parseSelectPhononAppletResponse(response);
+    return this.certificate;
   };
 
   private pairStepOne = async (

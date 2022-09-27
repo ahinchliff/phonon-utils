@@ -1,13 +1,20 @@
 import { CommandApdu, ResponseApdu } from './apdu/apdu-types';
-import { CreatePhononResponse, DestroyPhononResponse, GetPhononPublicKeyResponse, UnlockResponse, ChangePinResponse, ChangeFriendlyNameResponse, PairStepOneTwoThreeResponse, PairStepRecipientStepTwoResponse, SendPhononsResponse, ReceivePhononsResponse } from './apdu/responses';
+import { CreatePhononResponse, DestroyPhononResponse, GetPhononPublicKeyResponse, UnlockResponse, ChangePinResponse, ChangeFriendlyNameResponse, PairStepOneTwoThreeResponse, PairStepRecipientStepTwoResponse, SendPhononsResponse, ReceivePhononsResponse, IdentifyCardResponse } from './apdu/responses';
 import { CardCertificate, CurveType, Phonon } from './types';
 export default class PhononCard {
     private sendCommand;
-    private cardCertificate;
+    private queue;
+    private isInitialised;
+    private publicKey;
+    private pairingPublicKey;
+    private certificate;
     private sessionKeys;
     private pairingSignature;
-    private verifyIdentitySignatureDataHash;
+    private pairingSignatureData;
     constructor(sendCommand: (command: CommandApdu) => Promise<ResponseApdu>);
+    select: () => Promise<void>;
+    identifyCard: (nonce?: Uint8Array | undefined) => Promise<IdentifyCardResponse>;
+    init: (newPin: string) => Promise<void>;
     getFriendlyName: () => Promise<string | undefined>;
     unlock: (pin: string) => Promise<UnlockResponse>;
     createPhonon: (curveType: CurveType) => Promise<CreatePhononResponse>;
@@ -23,7 +30,7 @@ export default class PhononCard {
     cardPairStepFour: (pairSenderStepTwoData: Uint8Array) => Promise<PairStepRecipientStepTwoResponse>;
     sendPhonons: (keyIndicies: number[]) => Promise<SendPhononsResponse>;
     receivePhonons: (transfer: Uint8Array) => Promise<ReceivePhononsResponse>;
-    pair: () => Promise<void>;
+    openSecureConnection: () => Promise<void>;
     verifyCard: (caAuthorityCert: Uint8Array) => Promise<{
         valid: boolean;
         reason?: undefined;
@@ -35,11 +42,12 @@ export default class PhononCard {
         };
     }>;
     getPublicKey: () => Uint8Array;
+    getIsInitialised: () => boolean;
     getCertificate: () => CardCertificate;
-    private selectPhononApplet;
     private pairStepOne;
     private pairStepTwo;
     private openSecureChannel;
     private mutualAuthenticate;
-    private sendCommandInternal;
+    private sendCommandInteral;
+    private _sendCommandInteral;
 }

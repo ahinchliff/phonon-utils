@@ -94,15 +94,32 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
     }
     return to.concat(ar || Array.prototype.slice.call(from));
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.curveNameToCurveCode = exports.isCertificateValid = exports.digestCertificate = exports.serialiseCertificate = exports.parseResponse = exports.numberToBytes = exports.bytesToNumber = exports.stringToBytes = exports.decryptResponseData = exports.encryptCommandApdu = exports.parseEncryptedResponseData = exports.generateSharedSecret = exports.createMeta = exports.calculateMac = exports.createPairStepTwoCryptogram = exports.decrypt = exports.encrypt = exports.deriveSessionKeys = exports.createEmptyData = exports.removePaddingFromData = exports.appendPaddingToData = exports.generateRandomBytes = void 0;
+exports.curveNameToCurveCode = exports.isCertificateValid = exports.digestCertificate = exports.serialiseCertificate = exports.parseResponse = exports.numberToBytes = exports.bytesToNumber = exports.stringToBytes = exports.decryptResponseData = exports.encryptCommandApdu = exports.parseEncryptedResponseData = exports.generateSharedSecret = exports.createMeta = exports.calculateMac = exports.createPairStepTwoCryptogram = exports.decrypt = exports.encrypt = exports.deriveSessionKeys = exports.createEmptyData = exports.removePaddingFromData = exports.appendPaddingToData = exports.generateInitSecrets = exports.generateRandomBytes = void 0;
 var crypto = __importStar(require("crypto"));
 var secp256k1 = __importStar(require("@noble/secp256k1"));
 var constants_1 = require("../constants");
+var pbkdf2_1 = __importDefault(require("pbkdf2"));
 var generateRandomBytes = function (length) {
     return new Uint8Array(crypto.randomBytes(length));
 };
 exports.generateRandomBytes = generateRandomBytes;
+var generateInitSecrets = function () {
+    var pairingPassword = crypto.randomBytes(12).toString('base64url');
+    var puk = Math.random().toString().substring(2, 12);
+    var pin = Math.random().toString().substring(2, 6);
+    var pairingToken = new Uint8Array(pbkdf2_1.default.pbkdf2Sync(pairingPassword, 'Keycard Pairing Password Salt', 50000, 32, 'sha256'));
+    return {
+        pairingPassword: pairingPassword,
+        puk: puk,
+        pin: pin,
+        pairingToken: pairingToken,
+    };
+};
+exports.generateInitSecrets = generateInitSecrets;
 var appendPaddingToData = function (blockSize, data) {
     var paddingSize = blockSize - (data.length % blockSize);
     return new Uint8Array(__spreadArray(__spreadArray(__spreadArray([], __read(data), false), [128], false), __read((0, exports.createEmptyData)(paddingSize - 1)), false));

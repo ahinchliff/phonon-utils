@@ -212,16 +212,22 @@ var onCardDetected = function (event) { return __awaiter(void 0, void 0, void 0,
                 console.log('Card inserted');
                 sendCommand = (0, adapters_1.createSendCommand)(event.card);
                 card = new PhononCard_1.default(sendCommand);
-                return [4 /*yield*/, card.pair()];
+                return [4 /*yield*/, card.select()];
             case 1:
                 _a.sent();
+                if (!card.getIsInitialised()) {
+                    console.log('card not initialised');
+                }
                 return [4 /*yield*/, card.unlock('111111')];
             case 2:
                 _a.sent();
-                phononCards.push(card);
+                return [4 /*yield*/, card.openSecureConnection()];
+            case 3:
+                _a.sent();
+                console.log(card.getPublicKey());
                 // await testCardPairing();
                 return [4 /*yield*/, testRemotePairing()];
-            case 3:
+            case 4:
                 // await testCardPairing();
                 _a.sent();
                 return [2 /*return*/];

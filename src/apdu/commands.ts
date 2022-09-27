@@ -65,7 +65,7 @@ export const createUnlockCommandApdu = (pin: string): CommandApdu => ({
   data: stringToBytes(pin),
 });
 
-export const createGetFriendlyNameCommandApud = (): CommandApdu => ({
+export const createGetFriendlyNameCommandApdu = (): CommandApdu => ({
   cla: 128,
   ins: 87,
   p1: 0,
@@ -134,7 +134,7 @@ export const createGetPhononPublicKeyCommandApdu = (
   };
 };
 
-export const createChangePinCommandApud = (newPin: string): CommandApdu => {
+export const createChangePinCommandApdu = (newPin: string): CommandApdu => {
   return {
     cla: 128,
     ins: 33,
@@ -205,7 +205,7 @@ export const createPairRecipientStepTwoCommandApdu = (
   };
 };
 
-export const createSendPhononsCommandApud = (
+export const createSendPhononsCommandApdu = (
   keyIndices: number[],
   extendedRequest: boolean
 ): CommandApdu => {
@@ -226,7 +226,7 @@ export const createSendPhononsCommandApud = (
   };
 };
 
-export const createReceivePhononsCommandApud = (
+export const createReceivePhononsCommandApdu = (
   phononTransfer: Uint8Array
 ): CommandApdu => {
   return {
@@ -235,5 +235,27 @@ export const createReceivePhononsCommandApud = (
     p1: 0,
     p2: 0,
     data: phononTransfer,
+  };
+};
+
+export const createInitCardCommandApdu = (data: Uint8Array): CommandApdu => {
+  return {
+    cla: 128,
+    ins: 254,
+    p1: 0,
+    p2: 0,
+    data,
+  };
+};
+
+export const createIdentifyCardCommandApdu = (
+  nonce: Uint8Array
+): CommandApdu => {
+  return {
+    cla: 128,
+    ins: 20,
+    p1: 0,
+    p2: 0,
+    data: nonce,
   };
 };

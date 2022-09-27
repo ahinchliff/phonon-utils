@@ -1,3 +1,4 @@
+import { isUint8Array } from 'util/types';
 import { CURVE_TYPE_CODE_TO_NAME_MAP } from '../constants';
 import { CardCertificate, Phonon } from '../types';
 import { bytesToNumber } from '../utils/cryptography-utils';
@@ -28,8 +29,13 @@ export type UnlockResponse = ParseResponse<{}, UnlockError>;
 
 export type SelectPhononFileResponse = {
   initialised: boolean;
-  uuid: Uint8Array;
+  uuid: Uint8Array | undefined;
   publicKey: Uint8Array;
+};
+
+export type IdentifyCardResponse = {
+  publicKey: Uint8Array;
+  signature: Uint8Array;
 };
 
 export type PairStepOneResponse = {
@@ -78,10 +84,24 @@ export type ReceivePhononsResponse = ParseResponse<{}, UnknownError>;
 export const parseSelectPhononAppletResponse = (
   responseApdu: ResponseApdu
 ): SelectPhononFileResponse => {
+  const initialised = responseApdu.data[0] === 164;
+  const publicKeyLength = responseApdu.data[1];
+
   return {
-    initialised: responseApdu.data[0] === 164,
-    uuid: responseApdu.data.slice(4, 20),
-    publicKey: responseApdu.data.slice(22, 87),
+    initialised,
+    uuid: initialised ? responseApdu.data.slice(4, 20) : undefined,
+    publicKey: initialised
+      ? responseApdu.data.slice(22, 87)
+      : responseApdu.data.slice(2, 2 + publicKeyLength),
+  };
+};
+
+export const parseIdentifyCardResponse = (
+  responseApdu: ResponseApdu
+): IdentifyCardResponse => {
+  return {
+    publicKey: responseApdu.data.slice(2, 67),
+    signature: responseApdu.data.slice(67),
   };
 };
 

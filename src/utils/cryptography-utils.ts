@@ -7,6 +7,7 @@ import {
 } from '../apdu/apdu-types';
 import { CardCertificate, CurveType } from '../types';
 import { CURVE_TYPE_CODE_TO_NAME_MAP } from '../constants';
+import pbkdf2 from 'pbkdf2';
 
 export type SessionKeys = {
   encryptionKey: Uint8Array;
@@ -26,6 +27,28 @@ export type DecryptResponseApduResult = {
 
 export const generateRandomBytes = (length: number): Uint8Array =>
   new Uint8Array(crypto.randomBytes(length));
+
+export const generateInitSecrets = () => {
+  const pairingPassword = crypto.randomBytes(12).toString('base64url');
+  const puk = Math.random().toString().substring(2, 12);
+  const pin = Math.random().toString().substring(2, 6);
+  const pairingToken = new Uint8Array(
+    pbkdf2.pbkdf2Sync(
+      pairingPassword,
+      'Keycard Pairing Password Salt',
+      50000,
+      32,
+      'sha256'
+    )
+  );
+
+  return {
+    pairingPassword,
+    puk,
+    pin,
+    pairingToken,
+  };
+};
 
 export const appendPaddingToData = (
   blockSize: number,

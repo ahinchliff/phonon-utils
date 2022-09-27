@@ -96,20 +96,86 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 var secp256k1 = __importStar(require("@noble/secp256k1"));
+var crypto_1 = require("crypto");
 var commands_1 = require("./apdu/commands");
 var responses_1 = require("./apdu/responses");
+var create_invoke_queue_1 = require("./utils/create-invoke-queue");
 var cryptography_utils_1 = require("./utils/cryptography-utils");
 var PhononCard = /** @class */ (function () {
     function PhononCard(sendCommand) {
         var _this = this;
         this.sendCommand = sendCommand;
+        this.queue = (0, create_invoke_queue_1.createInvokeQueue)();
+        this.select = function () { return __awaiter(_this, void 0, void 0, function () {
+            var command, response, _a, initialised, publicKey;
+            return __generator(this, function (_b) {
+                switch (_b.label) {
+                    case 0:
+                        command = (0, commands_1.createSelectPhononCommandApdu)();
+                        return [4 /*yield*/, this.sendCommandInteral(command)];
+                    case 1:
+                        response = _b.sent();
+                        _a = (0, responses_1.parseSelectPhononAppletResponse)(response), initialised = _a.initialised, publicKey = _a.publicKey;
+                        this.isInitialised = initialised;
+                        this.pairingPublicKey = publicKey;
+                        return [2 /*return*/];
+                }
+            });
+        }); };
+        this.identifyCard = function (nonce) { return __awaiter(_this, void 0, void 0, function () {
+            var command, response, parsedResponse;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        command = (0, commands_1.createIdentifyCardCommandApdu)(nonce || (0, crypto_1.randomBytes)(32));
+                        return [4 /*yield*/, this.sendCommandInteral(command)];
+                    case 1:
+                        response = _a.sent();
+                        parsedResponse = (0, responses_1.parseIdentifyCardResponse)(response);
+                        this.publicKey = parsedResponse.publicKey;
+                        return [2 /*return*/, parsedResponse];
+                }
+            });
+        }); };
+        this.init = function (newPin) { return __awaiter(_this, void 0, void 0, function () {
+            var pairingPrivateKey, pairingPublicKey, initSecrets, sharedSecret, initData, iv, encryptedData, data, command;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        if (this.isInitialised) {
+                            throw new Error('Card is already initialised');
+                        }
+                        if (!this.pairingPublicKey) {
+                            throw new Error('Card does not have public key. Try running select.');
+                        }
+                        pairingPrivateKey = secp256k1.utils.randomPrivateKey();
+                        pairingPublicKey = secp256k1.getPublicKey(pairingPrivateKey);
+                        initSecrets = (0, cryptography_utils_1.generateInitSecrets)();
+                        sharedSecret = (0, cryptography_utils_1.generateSharedSecret)(pairingPrivateKey, this.pairingPublicKey);
+                        initData = new Uint8Array(__spreadArray(__spreadArray([], __read((0, cryptography_utils_1.stringToBytes)(newPin)), false), __read(initSecrets.pairingToken), false));
+                        iv = (0, cryptography_utils_1.generateRandomBytes)(16);
+                        encryptedData = (0, cryptography_utils_1.encrypt)(initData, sharedSecret, iv);
+                        data = new Uint8Array(__spreadArray(__spreadArray(__spreadArray([
+                            pairingPublicKey.length
+                        ], __read(pairingPublicKey), false), __read(iv), false), __read(encryptedData), false));
+                        command = (0, commands_1.createInitCardCommandApdu)(data);
+                        return [4 /*yield*/, this.sendCommandInteral(command)];
+                    case 1:
+                        _a.sent();
+                        return [4 /*yield*/, this.select()];
+                    case 2:
+                        _a.sent();
+                        return [2 /*return*/];
+                }
+            });
+        }); };
         this.getFriendlyName = function () { return __awaiter(_this, void 0, void 0, function () {
             var command, response;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        command = (0, commands_1.createGetFriendlyNameCommandApud)();
-                        return [4 /*yield*/, this.sendCommandInternal(command)];
+                        command = (0, commands_1.createGetFriendlyNameCommandApdu)();
+                        return [4 /*yield*/, this.sendCommandInteral(command)];
                     case 1:
                         response = _a.sent();
                         return [2 /*return*/, (0, responses_1.parseGetFriendlyNameResponse)(response)];
@@ -122,7 +188,7 @@ var PhononCard = /** @class */ (function () {
                 switch (_a.label) {
                     case 0:
                         command = (0, commands_1.createUnlockCommandApdu)(pin);
-                        return [4 /*yield*/, this.sendCommandInternal(command)];
+                        return [4 /*yield*/, this.sendCommandInteral(command)];
                     case 1:
                         response = _a.sent();
                         return [2 /*return*/, (0, responses_1.parseUnlockResponse)(response)];
@@ -135,7 +201,7 @@ var PhononCard = /** @class */ (function () {
                 switch (_a.label) {
                     case 0:
                         command = (0, commands_1.createCreatePhononCommandApdu)(curveType);
-                        return [4 /*yield*/, this.sendCommandInternal(command)];
+                        return [4 /*yield*/, this.sendCommandInteral(command)];
                     case 1:
                         response = _a.sent();
                         return [2 /*return*/, (0, responses_1.parseCreatePhononResponse)(response)];
@@ -148,7 +214,7 @@ var PhononCard = /** @class */ (function () {
                 switch (_a.label) {
                     case 0:
                         command = (0, commands_1.createDestroyPhononCommandApdu)(keyIndex);
-                        return [4 /*yield*/, this.sendCommandInternal(command)];
+                        return [4 /*yield*/, this.sendCommandInteral(command)];
                     case 1:
                         response = _a.sent();
                         return [2 /*return*/, (0, responses_1.parseDestroyPhononResponse)(response)];
@@ -168,7 +234,7 @@ var PhononCard = /** @class */ (function () {
                                 switch (_a.label) {
                                     case 0:
                                         command = (0, commands_1.createListPhononsCommandApdu)(continuation);
-                                        return [4 /*yield*/, this.sendCommandInternal(command)];
+                                        return [4 /*yield*/, this.sendCommandInteral(command)];
                                     case 1:
                                         response = _a.sent();
                                         parsedResponse = (0, responses_1.parseListPhononsResponse)(response);
@@ -195,7 +261,7 @@ var PhononCard = /** @class */ (function () {
                 switch (_a.label) {
                     case 0:
                         command = (0, commands_1.createGetPhononPublicKeyCommandApdu)(keyIndex);
-                        return [4 /*yield*/, this.sendCommandInternal(command)];
+                        return [4 /*yield*/, this.sendCommandInteral(command)];
                     case 1:
                         response = _a.sent();
                         return [2 /*return*/, (0, responses_1.parseGetPhononPublicKeyResponse)(response)];
@@ -208,7 +274,7 @@ var PhononCard = /** @class */ (function () {
                 switch (_a.label) {
                     case 0:
                         command = (0, commands_1.createGetPhononPublicKeyCommandApdu)(keyIndex);
-                        return [4 /*yield*/, this.sendCommandInternal(command)];
+                        return [4 /*yield*/, this.sendCommandInteral(command)];
                     case 1:
                         response = _a.sent();
                         return [2 /*return*/, (0, responses_1.parseGetPhononPublicKeyResponse)(response)];
@@ -220,8 +286,8 @@ var PhononCard = /** @class */ (function () {
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        command = (0, commands_1.createChangePinCommandApud)(newPin);
-                        return [4 /*yield*/, this.sendCommandInternal(command)];
+                        command = (0, commands_1.createChangePinCommandApdu)(newPin);
+                        return [4 /*yield*/, this.sendCommandInteral(command)];
                     case 1:
                         response = _a.sent();
                         return [2 /*return*/, (0, responses_1.parseChangePinResponse)(response)];
@@ -234,7 +300,7 @@ var PhononCard = /** @class */ (function () {
                 switch (_a.label) {
                     case 0:
                         command = (0, commands_1.createChangeFriendlyNameCommandApdu)(newName);
-                        return [4 /*yield*/, this.sendCommandInternal(command)];
+                        return [4 /*yield*/, this.sendCommandInteral(command)];
                     case 1:
                         response = _a.sent();
                         return [2 /*return*/, (0, responses_1.parseChangeFriendlyNameResponse)(response)];
@@ -247,7 +313,7 @@ var PhononCard = /** @class */ (function () {
                 switch (_a.label) {
                     case 0:
                         command = (0, commands_1.createPairSenderStepOneCommandApdu)((0, cryptography_utils_1.serialiseCertificate)(recipientsCardCert));
-                        return [4 /*yield*/, this.sendCommandInternal(command)];
+                        return [4 /*yield*/, this.sendCommandInteral(command)];
                     case 1:
                         response = _a.sent();
                         return [2 /*return*/, (0, responses_1.parsePairStepOneTwoThreeResponse)(response)];
@@ -260,7 +326,7 @@ var PhononCard = /** @class */ (function () {
                 switch (_a.label) {
                     case 0:
                         command = (0, commands_1.createPairRecipientStepOneCommandApdu)(pairSenderStepOneData);
-                        return [4 /*yield*/, this.sendCommandInternal(command)];
+                        return [4 /*yield*/, this.sendCommandInteral(command)];
                     case 1:
                         response = _a.sent();
                         return [2 /*return*/, (0, responses_1.parsePairStepOneTwoThreeResponse)(response)];
@@ -273,7 +339,7 @@ var PhononCard = /** @class */ (function () {
                 switch (_a.label) {
                     case 0:
                         command = (0, commands_1.createPairSenderStepTwoCommandApdu)(pairRecipientStepOneData);
-                        return [4 /*yield*/, this.sendCommandInternal(command)];
+                        return [4 /*yield*/, this.sendCommandInteral(command)];
                     case 1:
                         response = _a.sent();
                         return [2 /*return*/, (0, responses_1.parsePairStepOneTwoThreeResponse)(response)];
@@ -286,7 +352,7 @@ var PhononCard = /** @class */ (function () {
                 switch (_a.label) {
                     case 0:
                         command = (0, commands_1.createPairRecipientStepTwoCommandApdu)(pairSenderStepTwoData);
-                        return [4 /*yield*/, this.sendCommandInternal(command)];
+                        return [4 /*yield*/, this.sendCommandInteral(command)];
                     case 1:
                         response = _a.sent();
                         return [2 /*return*/, (0, responses_1.parsePairRecipientStepTwoResponse)(response)];
@@ -298,8 +364,8 @@ var PhononCard = /** @class */ (function () {
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        command = (0, commands_1.createSendPhononsCommandApud)(keyIndicies, false);
-                        return [4 /*yield*/, this.sendCommandInternal(command)];
+                        command = (0, commands_1.createSendPhononsCommandApdu)(keyIndicies, false);
+                        return [4 /*yield*/, this.sendCommandInteral(command)];
                     case 1:
                         response = _a.sent();
                         return [2 /*return*/, (0, responses_1.parseSendPhononsResponse)(response)];
@@ -311,55 +377,56 @@ var PhononCard = /** @class */ (function () {
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        command = (0, commands_1.createReceivePhononsCommandApud)(transfer);
-                        return [4 /*yield*/, this.sendCommandInternal(command)];
+                        command = (0, commands_1.createReceivePhononsCommandApdu)(transfer);
+                        return [4 /*yield*/, this.sendCommandInteral(command)];
                     case 1:
                         response = _a.sent();
                         return [2 /*return*/, (0, responses_1.parseReceivePhononsResponse)(response)];
                 }
             });
         }); };
-        this.pair = function () { return __awaiter(_this, void 0, void 0, function () {
-            var selectResponse, secureChannelPrivateKey, secureChannelPublicKey, secureChannelSharedSecret, clientSalt, pairingPrivateKey, pairingPublicKey, pairOneResponse, pairingSecret, verifyIdentifySignatureData, verifyIdentifySignatureDataHash, cryptogram, pairTwoResponse, openSecureChannelResponse, pairingKey, mutuallyAuthenticateData;
+        this.openSecureConnection = function () { return __awaiter(_this, void 0, void 0, function () {
+            var secureChannelPrivateKey, secureChannelPublicKey, secureChannelSharedSecret, clientSalt, pairingPrivateKey, pairingPublicKey, pairOneResponse, pairingSecret, verifyIdentifySignatureData, verifyIdentifySignatureDataHash, cryptogram, pairTwoResponse, openSecureChannelResponse, pairingKey, mutuallyAuthenticateData;
             return __generator(this, function (_a) {
                 switch (_a.label) {
-                    case 0: return [4 /*yield*/, this.selectPhononApplet()];
-                    case 1:
-                        selectResponse = _a.sent();
+                    case 0:
+                        if (!this.isInitialised || !this.pairingPublicKey) {
+                            throw new Error('Card is not initalised');
+                        }
                         secureChannelPrivateKey = secp256k1.utils.randomPrivateKey();
                         secureChannelPublicKey = secp256k1.getPublicKey(secureChannelPrivateKey);
-                        secureChannelSharedSecret = (0, cryptography_utils_1.generateSharedSecret)(secureChannelPrivateKey, selectResponse.publicKey);
+                        secureChannelSharedSecret = (0, cryptography_utils_1.generateSharedSecret)(secureChannelPrivateKey, this.pairingPublicKey);
                         clientSalt = (0, cryptography_utils_1.generateRandomBytes)(32);
                         pairingPrivateKey = secp256k1.utils.randomPrivateKey();
                         pairingPublicKey = secp256k1.getPublicKey(pairingPrivateKey);
                         return [4 /*yield*/, this.pairStepOne(pairingPublicKey, clientSalt)];
-                    case 2:
+                    case 1:
                         pairOneResponse = _a.sent();
                         pairingSecret = (0, cryptography_utils_1.generateSharedSecret)(pairingPrivateKey, pairOneResponse.cardIdentityCertificate.publicKey);
                         verifyIdentifySignatureData = Uint8Array.of.apply(Uint8Array, __spreadArray(__spreadArray([], __read(clientSalt), false), __read(pairingSecret), false));
                         return [4 /*yield*/, secp256k1.utils.sha256(verifyIdentifySignatureData)];
-                    case 3:
+                    case 2:
                         verifyIdentifySignatureDataHash = _a.sent();
                         return [4 /*yield*/, (0, cryptography_utils_1.createPairStepTwoCryptogram)(pairOneResponse.pairingSalt, verifyIdentifySignatureDataHash)];
-                    case 4:
+                    case 3:
                         cryptogram = _a.sent();
                         return [4 /*yield*/, this.pairStepTwo(cryptogram)];
-                    case 5:
+                    case 4:
                         pairTwoResponse = _a.sent();
                         return [4 /*yield*/, this.openSecureChannel(pairTwoResponse.pairingIndex, secureChannelPublicKey)];
-                    case 6:
+                    case 5:
                         openSecureChannelResponse = _a.sent();
                         return [4 /*yield*/, secp256k1.utils.sha256(new Uint8Array(__spreadArray(__spreadArray([], __read(pairTwoResponse.salt), false), __read(verifyIdentifySignatureDataHash), false)))];
-                    case 7:
+                    case 6:
                         pairingKey = _a.sent();
                         this.sessionKeys = (0, cryptography_utils_1.deriveSessionKeys)(secureChannelSharedSecret, pairingKey, openSecureChannelResponse);
                         mutuallyAuthenticateData = (0, cryptography_utils_1.generateRandomBytes)(32);
                         return [4 /*yield*/, this.mutualAuthenticate(mutuallyAuthenticateData)];
-                    case 8:
+                    case 7:
                         _a.sent();
-                        this.cardCertificate = pairOneResponse.cardIdentityCertificate;
+                        this.certificate = pairOneResponse.cardIdentityCertificate;
                         this.pairingSignature = pairOneResponse.pairingSignature;
-                        this.verifyIdentitySignatureDataHash = verifyIdentifySignatureDataHash;
+                        this.pairingSignatureData = verifyIdentifySignatureDataHash;
                         return [2 /*return*/];
                 }
             });
@@ -369,15 +436,15 @@ var PhononCard = /** @class */ (function () {
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        if (!this.cardCertificate ||
+                        if (!this.certificate ||
                             !this.pairingSignature ||
-                            !this.verifyIdentitySignatureDataHash) {
+                            !this.pairingSignatureData) {
                             throw new Error("Can't verify card before paring");
                         }
-                        return [4 /*yield*/, (0, cryptography_utils_1.isCertificateValid)(this.cardCertificate, caAuthorityCert)];
+                        return [4 /*yield*/, (0, cryptography_utils_1.isCertificateValid)(this.certificate, caAuthorityCert)];
                     case 1:
                         certIsValid = _a.sent();
-                        signatureIsValid = secp256k1.verify(this.pairingSignature, this.verifyIdentitySignatureDataHash, this.cardCertificate.publicKey, {
+                        signatureIsValid = secp256k1.verify(this.pairingSignature, this.pairingSignatureData, this.certificate.publicKey, {
                             strict: false,
                         });
                         if (certIsValid && signatureIsValid) {
@@ -394,37 +461,31 @@ var PhononCard = /** @class */ (function () {
             });
         }); };
         this.getPublicKey = function () {
-            if (!_this.cardCertificate) {
-                throw new Error("Can't get public key before paring");
+            var _a;
+            if (!_this.certificate && !_this.publicKey) {
+                throw new Error("Can't get public key before running select or openSecureConnection");
             }
-            return _this.cardCertificate.publicKey;
+            return (((_a = _this.certificate) === null || _a === void 0 ? void 0 : _a.publicKey) || _this.publicKey);
+        };
+        this.getIsInitialised = function () {
+            if (_this.isInitialised === undefined) {
+                throw new Error("Can't determine if card is initialised before running select");
+            }
+            return _this.isInitialised;
         };
         this.getCertificate = function () {
-            if (!_this.cardCertificate) {
-                throw new Error("Can't get public key before paring");
+            if (!_this.certificate) {
+                throw new Error("Can't get certificate before running openSecureConnection");
             }
-            return _this.cardCertificate;
+            return _this.certificate;
         };
-        this.selectPhononApplet = function () { return __awaiter(_this, void 0, void 0, function () {
-            var command, response;
-            return __generator(this, function (_a) {
-                switch (_a.label) {
-                    case 0:
-                        command = (0, commands_1.createSelectPhononCommandApdu)();
-                        return [4 /*yield*/, this.sendCommandInternal(command)];
-                    case 1:
-                        response = _a.sent();
-                        return [2 /*return*/, (0, responses_1.parseSelectPhononAppletResponse)(response)];
-                }
-            });
-        }); };
         this.pairStepOne = function (publicKey, salt) { return __awaiter(_this, void 0, void 0, function () {
             var command, response;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
                         command = (0, commands_1.createPairStepOneCommandApdu)(publicKey, salt);
-                        return [4 /*yield*/, this.sendCommandInternal(command)];
+                        return [4 /*yield*/, this.sendCommandInteral(command)];
                     case 1:
                         response = _a.sent();
                         return [2 /*return*/, (0, responses_1.parsePairStepOneResponse)(response)];
@@ -437,7 +498,7 @@ var PhononCard = /** @class */ (function () {
                 switch (_a.label) {
                     case 0:
                         command = (0, commands_1.createPairStepTwoCommandApdu)(cryptogram);
-                        return [4 /*yield*/, this.sendCommandInternal(command)];
+                        return [4 /*yield*/, this.sendCommandInteral(command)];
                     case 1:
                         response = _a.sent();
                         return [2 /*return*/, (0, responses_1.parsePairStepTwoResponse)(response)];
@@ -450,7 +511,7 @@ var PhononCard = /** @class */ (function () {
                 switch (_a.label) {
                     case 0:
                         command = (0, commands_1.createOpenSecureChannelCommandApdu)(pairingIndex, publicKey);
-                        return [4 /*yield*/, this.sendCommandInternal(command)];
+                        return [4 /*yield*/, this.sendCommandInteral(command)];
                     case 1:
                         response = _a.sent();
                         return [2 /*return*/, response.data];
@@ -463,14 +524,17 @@ var PhononCard = /** @class */ (function () {
                 switch (_a.label) {
                     case 0:
                         command = (0, commands_1.createMutualAuthenticateCommandApdu)(data);
-                        return [4 /*yield*/, this.sendCommandInternal(command)];
+                        return [4 /*yield*/, this.sendCommandInteral(command)];
                     case 1:
                         _a.sent();
                         return [2 /*return*/];
                 }
             });
         }); };
-        this.sendCommandInternal = function (command) { return __awaiter(_this, void 0, void 0, function () {
+        this.sendCommandInteral = function (command) {
+            return _this.queue(function () { return _this._sendCommandInteral(command); });
+        };
+        this._sendCommandInteral = function (command) { return __awaiter(_this, void 0, void 0, function () {
             var _a, encryptedCommand, iv_1, response, _b, plainTextData, iv;
             return __generator(this, function (_c) {
                 switch (_c.label) {

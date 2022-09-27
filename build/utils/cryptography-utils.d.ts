@@ -14,6 +14,12 @@ export declare type DecryptResponseApduResult = {
     iv: Uint8Array;
 };
 export declare const generateRandomBytes: (length: number) => Uint8Array;
+export declare const generateInitSecrets: () => {
+    pairingPassword: string;
+    puk: string;
+    pin: string;
+    pairingToken: Uint8Array;
+};
 export declare const appendPaddingToData: (blockSize: number, data: Uint8Array) => Uint8Array;
 export declare const removePaddingFromData: (blockSize: number, data: Uint8Array) => Uint8Array;
 export declare const createEmptyData: (length: number) => Uint8Array;
